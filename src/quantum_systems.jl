@@ -53,6 +53,7 @@ struct QuantumSystem <: AbstractSystem
     ψ̃init::Vector{Float64}
     ψ̃goal::Vector{Float64}
     ∫a::Bool
+    U_inds::Union{Nothing, NamedTuple{ind_names, <:Tuple{Vararg{AbstractVector{Int}}}} where ind_names}
 end
 
 
@@ -155,6 +156,7 @@ function QuantumSystem(
     control_bounds::Vector{Float64};
     ∫a=false,
     control_order=2,
+    U_inds::Union{Nothing, NamedTuple{ind_names, <:Tuple{Vararg{AbstractVector{Int}}}} where ind_names}=nothing
 ) where {C1 <: Number, T <: Number}
 
     @assert size(U_goal, 1) == size(U_goal, 2)
@@ -201,7 +203,8 @@ function QuantumSystem(
         control_bounds,
         ψ̃init,
         ψ̃goal,
-        ∫a
+        ∫a,
+        U_inds
     )
 end
 

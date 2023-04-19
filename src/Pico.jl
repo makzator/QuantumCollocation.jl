@@ -5,6 +5,7 @@ using Reexport
 include("utils.jl")
 @reexport using .Utils
 
+
 # TODO: maybe make this a seperate package?
 # include("qutip_utils.jl")
 # @reexport using .QuTiPUtils
@@ -56,5 +57,8 @@ include("problem_solvers.jl")
 
 include("plotting_utils.jl")
 @reexport using .PlottingUtils
+
+include("rollouts.jl")
+@reexport using .Rollouts
 
 end

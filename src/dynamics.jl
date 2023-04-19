@@ -24,26 +24,35 @@ using SparseArrays
     uₜ::AbstractVector,
     Δt::Real
 )
+    if sys.control_order != 0
+        augsₜ = xₜ[(sys.n_wfn_states + 1):end]
+        augsₜ₊₁ = xₜ₊₁[(sys.n_wfn_states + 1):end]
 
-    augsₜ = xₜ[(sys.n_wfn_states + 1):end]
-    augsₜ₊₁ = xₜ₊₁[(sys.n_wfn_states + 1):end]
-
-    controlsₜ = [augsₜ[(sys.ncontrols + 1):end]; uₜ]
-
-
-    δaugs = augsₜ₊₁ - (augsₜ + controlsₜ * Δt)
-
-    δψ̃s = zeros(typeof(xₜ[1]), sys.n_wfn_states)
+        controlsₜ = [augsₜ[(sys.ncontrols + 1):end]; uₜ]
 
 
-    aₜ = augsₜ[slice(1 + sys.∫a, sys.ncontrols)]
+        δaugs = augsₜ₊₁ - (augsₜ + controlsₜ * Δt)
 
-    for i = 1:sys.nqstates
-        ψ̃ⁱslice = slice(i, sys.isodim)
-        δψ̃s[ψ̃ⁱslice] = integrator(xₜ₊₁[ψ̃ⁱslice], xₜ[ψ̃ⁱslice], aₜ, Δt)
+        δψ̃s = zeros(typeof(xₜ[1]), sys.n_wfn_states)
+
+
+        aₜ = augsₜ[slice(1 + sys.∫a, sys.ncontrols)]
+
+        for i = 1:sys.nqstates
+            ψ̃ⁱslice = slice(i, sys.isodim)
+            δψ̃s[ψ̃ⁱslice] = integrator(xₜ₊₁[ψ̃ⁱslice], xₜ[ψ̃ⁱslice], aₜ, Δt)
+        end
+        return [δψ̃s; δaugs]
+    else
+    
+        δψ̃s = zeros(typeof(xₜ[1]), sys.n_wfn_states)
+
+        for i = 1:sys.nqstates
+            ψ̃ⁱslice = slice(i, sys.isodim)
+            δψ̃s[ψ̃ⁱslice] = integrator(xₜ₊₁[ψ̃ⁱslice], xₜ[ψ̃ⁱslice], uₜ, Δt)
+        end
+        return δψ̃s
     end
-
-    return [δψ̃s; δaugs]
 end
 
 abstract type AbstractDynamics end

@@ -55,7 +55,7 @@ system = QuantumSystem(
 )
 
 T = 100
-Δt = 0.1
+Δt = 1e-4
 Q = 200.
 R = 0.01
 cost = :infidelity_cost

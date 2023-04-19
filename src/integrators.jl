@@ -5,6 +5,8 @@ export AbstractQuantumIntegrator
 export Exponential
 export SecondOrderPade
 export FourthOrderPade
+export sixth_order_pade
+export eighth_order_pade
 
 export Jacobian
 
@@ -13,6 +15,8 @@ export FourthOrderPadeJacobian
 
 export SecondOrderPadeHessian
 export FourthOrderPadeHessian
+
+export fourth_order_pade
 
 export G
 
@@ -106,9 +110,46 @@ function (integrator::FourthOrderPade)(
     Id = I(size(Gₜ, 1))
     # return (Id - Δt / 2 * Gₜ + Δt^2 / 9 * Gₜ^2) * ψ̃ₜ₊₁ -
     #        (Id + Δt / 2 * Gₜ + Δt^2 / 9 * Gₜ^2) * ψ̃ₜ
-    return (Id + Δt^2 / 9 * Gₜ^2) * (ψ̃ₜ₊₁ - ψ̃ₜ) -
+    return (Id + Δt^2 / 12 * Gₜ^2) * (ψ̃ₜ₊₁ - ψ̃ₜ) -
         Δt / 2 * Gₜ * (ψ̃ₜ₊₁ + ψ̃ₜ)
 end
+
+function fourth_order_pade(Gₜ::Matrix)
+    Id = I(size(Gₜ, 1))
+    Gₜ² = Gₜ^2
+    return inv(Id - 1 / 2 * Gₜ + 1 / 12 * Gₜ²) *
+        (Id + 1 / 2 * Gₜ + 1 / 12 * Gₜ²)
+end
+
+function sixth_order_pade(Gₜ::Matrix)
+    Id = I(size(Gₜ, 1))
+    Gₜ² = Gₜ^2
+    Gₜ3 = Gₜ^3
+    return inv(Id - 1 / 2 * Gₜ + 1 / 9 * Gₜ² - 1/72 * Gₜ3) *
+        (Id + 1 / 2 * Gₜ + 1 / 9 * Gₜ² + 1/72 * Gₜ3)
+end
+
+function eighth_order_pade(Gₜ::Matrix)
+    Id = I(size(Gₜ, 1))
+    Gₜ² = Gₜ^2
+    Gₜ² = Gₜ^2
+    Gₜ3= Gₜ^3
+    Gₜ4 = Gₜ^4
+    return inv(Id - 1 / 2 * Gₜ + 1 / 9 * Gₜ² - 1/72 * Gₜ3 + 1/1008*Gₜ4) *
+        (Id + 1 / 2 * Gₜ + 1 / 9 * Gₜ² + 1/72 * Gₜ3 + 1/1008 * Gₜ4)
+end
+
+function tenth_order_pade(Gₜ::Matrix)
+    Id = I(size(Gₜ, 1))
+    Gₜ² = Gₜ^2
+    Gₜ² = Gₜ^2
+    Gₜ3= Gₜ^3
+    Gₜ4 = Gₜ^4
+    Gₜ5 = Gₜ^5
+    return inv(Id - 1 / 2 * Gₜ + 1 / 9 * Gₜ² - 1/72 * Gₜ3 + 1/1008*Gₜ4 - 1/30240 * Gₜ5) *
+        (Id + 1 / 2 * Gₜ + 1 / 9 * Gₜ² + 1/72 * Gₜ3 + 1/1008 * Gₜ4 + 1/30240 * Gₜ5)
+end
+
 
 
 #
@@ -227,9 +268,9 @@ function (J::FourthOrderPadeJacobian)(
     Gₜ = G(aₜ, J.G_drift, J.G_drives)
     Id = I(size(Gₜ, 1))
     if ψ̃ⁱₜ₊₁
-        return Id - Δt / 2 * Gₜ + Δt^2 / 9 * Gₜ^2
+        return Id - Δt / 2 * Gₜ + Δt^2 / 12 * Gₜ^2
     else
-        return -(Id + Δt / 2 * Gₜ + Δt^2 / 9 * Gₜ^2)
+        return -(Id + Δt / 2 * Gₜ + Δt^2 / 12 * Gₜ^2)
     end
 end
 
@@ -245,7 +286,7 @@ function (J::FourthOrderPadeJacobian)(
 )
     Gʲ_anticom_Gₜ = G(aₜ, J.G_drift_anticoms[j], J.G_drive_anticoms[:, j])
     Gʲ = J.G_drives[j]
-    return -Δt / 2 * Gʲ * (ψ̃ⁱₜ₊₁ + ψ̃ⁱₜ) + Δt^2 / 9 * Gʲ_anticom_Gₜ * (ψ̃ⁱₜ₊₁ - ψ̃ⁱₜ)
+    return -Δt / 2 * Gʲ * (ψ̃ⁱₜ₊₁ + ψ̃ⁱₜ) + Δt^2 / 12 * Gʲ_anticom_Gₜ * (ψ̃ⁱₜ₊₁ - ψ̃ⁱₜ)
 end
 
 
@@ -338,7 +379,7 @@ end
 )
     Hᵏʲₜ = 0.0
 
-    Ĝᵏʲ = Δt^2 / 9 * H.G_drive_anticoms[k, j]
+    Ĝᵏʲ = Δt^2 / 12 * H.G_drive_anticoms[k, j]
 
     for i = 1:H.nqstates
 
@@ -371,9 +412,9 @@ end
     Gʲ = H.G_drives[j]
     μⁱₜ = μₜ[slice(i, H.isodim)]
     if ψ̃ⁱₜ₊₁
-        return (μⁱₜ)' * (-Δt / 2 * Gʲ + Δt^2 / 9 * Ĝʲ)
+        return (μⁱₜ)' * (-Δt / 2 * Gʲ + Δt^2 /12 * Ĝʲ)
     else
-        return -(Δt / 2 * Gʲ + Δt^2 / 9 * Ĝʲ)' * μⁱₜ
+        return -(Δt / 2 * Gʲ + Δt^2 / 12 * Ĝʲ)' * μⁱₜ
     end
 end
 

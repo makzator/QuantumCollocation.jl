@@ -51,7 +51,7 @@ struct QuantumCost
         elseif cost == :neg_entropy_cost
             cs = [ψ̃ⁱ -> eval(cost)(ψ̃ⁱ) for i = 1:sys.nqstates]
         elseif cost == :frobenius_cost
-            cs = [ψ̃ -> eval(cost)(ψ̃, sys.ψ̃goal, sys.isodim)]
+            cs = [ψ̃ -> eval(cost)(ψ̃, sys.ψ̃goal, sys.isodim, U_inds = sys.U_inds)]
             unidim = sys.n_wfn_states
         else
             cs = [
@@ -271,14 +271,19 @@ end
 function frobenius_cost(
     ψ̃::AbstractVector,
     ψ̃goal::AbstractVector,
-    isodim::Int
+    isodim::Int;
+    U_inds::Union{Nothing, NamedTuple{ind_names, <:Tuple{Vararg{AbstractVector{Int}}}} where ind_names} = nothing
 )
     @assert length(ψ̃) == length(ψ̃goal)
-    d = length(ψ̃) ÷ isodim
-    @assert isodim ÷ 2 == d
+    isnothing(U_inds) ? d = length(ψ̃) ÷ isodim : d = length(U_inds[:rows])
 
-    diag = [iso_to_ket(ψ̃[slice(i, isodim)])' *
-            iso_to_ket(ψ̃goal[slice(i, isodim)]) for i=1:d]
+    if isnothing(U_inds)  
+        diag = [iso_to_ket(ψ̃[slice(i, isodim)])' *
+                iso_to_ket(ψ̃goal[slice(i, isodim)]) for i=1:d]
+    else
+        diag = [iso_to_ket(ψ̃[slice(i, isodim)])' *
+                iso_to_ket(ψ̃goal[slice(i, isodim)]) for i=U_inds[:rows]]
+    end
 
     return abs(1 - abs(sum(diag))/d)
 end
