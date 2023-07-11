@@ -289,7 +289,8 @@ function ComplexModulusContraint(;
         μ∂² = spzeros(zdim * T, zdim * T)
         for (i, t) ∈ enumerate(times)
             t_slice = slice(t, comps, zdim)
-            μ∂²[t_slice, t_slice] = μₜ∂²gₜ(μ[i])
+            # I think a + should go here because we sum over the constraints with different multipliers μ
+            μ∂²[t_slice, t_slice] += μₜ∂²gₜ(μ[i])
         end
         if ipopt
             return [μ∂²[i, j] for (i, j) in μ∂²g_structure]
