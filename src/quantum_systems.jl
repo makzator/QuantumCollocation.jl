@@ -67,12 +67,12 @@ A struct for storing the isomorphisms of the system's drift and drive Hamiltonia
 as well as the system's parameters.
 """
 struct QuantumSystem{R} <: AbstractSystem
-    H_drift_real::Matrix{R}
-    H_drift_imag::Matrix{R}
-    H_drives_real::Vector{Matrix{R}}
-    H_drives_imag::Vector{Matrix{R}}
-    G_drift::Matrix{R}
-    G_drives::Vector{Matrix{R}}
+    H_drift_real::Union{Matrix{R}, SparseMatrixCSC{R, Int}}
+    H_drift_imag::Union{Matrix{R}, SparseMatrixCSC{R, Int}}
+    H_drives_real::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drives_imag::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    G_drift::Union{Matrix{R}, SparseMatrixCSC{R, Int}}
+    G_drives::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
     params::Dict{Symbol, Any}
 end
 
@@ -87,8 +87,8 @@ end
 Constructs a `QuantumSystem` object from the drift and drive Hamiltonian terms.
 """
 function QuantumSystem(
-    H_drift::Matrix{<:Number},
-    H_drives::Vector{<:Matrix{<:Number}};
+    H_drift::Union{Matrix{<:Number}, SparseMatrixCSC{<:Number, Int}},
+    H_drives::Union{Vector{<:Matrix{<:Number}}, Vector{<:SparseMatrixCSC{<:Number, Int}}};
     params=Dict{Symbol, Any}(),
     R::DataType=Float64,
     kwargs...
@@ -113,6 +113,10 @@ end
 
 function QuantumSystem(H_drives::Vector{<:Matrix{<:Number}}; kwargs...)
     return QuantumSystem(zeros(eltype(H_drives[1]), size(H_drives[1])), H_drives; kwargs...)
+end
+
+function QuantumSystem(H_drives::Vector{<:SparseMatrixCSC{<:Number, Int}}; kwargs...)
+    return QuantumSystem(spzeros(eltype(H_drives[1]), size(H_drives[1])), H_drives; kwargs...)
 end
 
 
