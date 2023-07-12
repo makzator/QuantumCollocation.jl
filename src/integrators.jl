@@ -52,6 +52,11 @@ sixth_order_pade(Gₜ::Matrix) = nth_order_pade(Gₜ, 6)
 eighth_order_pade(Gₜ::Matrix) = nth_order_pade(Gₜ, 8)
 tenth_order_pade(Gₜ::Matrix) = nth_order_pade(Gₜ, 10)
 
+fourth_order_pade(Gₜ::SparseMatrixCSC) = nth_order_pade(Matrix(Gₜ), 4)
+sixth_order_pade(Gₜ::SparseMatrixCSC) = nth_order_pade(Matrix(Gₜ), 6)
+eighth_order_pade(Gₜ::SparseMatrixCSC) = nth_order_pade(Matrix(Gₜ), 8)
+tenth_order_pade(Gₜ::SparseMatrixCSC) = nth_order_pade(Matrix(Gₜ), 10)
+
 function G(
     a::AbstractVector,
     G_drift::AbstractMatrix,
@@ -95,21 +100,21 @@ pade(n, k) = (factorial(n + k) // (factorial(n - k) * factorial(k) * 2^n))
 pade_coeffs(n) = [pade(n, k) for k = n:-1:0][2:end] // pade(n, n)
 
 @inline function operator(
-    a::AbstractVector{R},
-    A_drift::Union{Matrix{R}, SparseMatrixCSC{R, Int}},
-    A_drives::Union{Vector{<:Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
-) where R <: Real
+    a::AbstractVector{<:Real},
+    A_drift::Union{Matrix{<:Real}, SparseMatrixCSC{<:Real, Int}},
+    A_drives::Union{Vector{<:Matrix{<:Real}}, Vector{<:SparseMatrixCSC{<:Real, Int}}}
+)
     return A_drift + sum(a .* A_drives)
 end
 
 @inline function operator_anticomm_operator(
-    a::AbstractVector{R},
-    A_drift_anticomm_B_drift::Union{Matrix{R}, SparseMatrixCSC{R, Int}},
-    A_drift_anticomm_B_drives::Union{Vector{<:Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}},
-    B_drift_anticomm_A_drives::Union{Vector{<:Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}},
-    A_drives_anticomm_B_drives::Union{Matrix{<:Matrix{R}}, Matrix{SparseMatrixCSC{R, Int}}},
+    a::AbstractVector{<:Real},
+    A_drift_anticomm_B_drift::Union{Matrix{<:Real}, SparseMatrixCSC{<:Real, Int}},
+    A_drift_anticomm_B_drives::Union{Vector{<:Matrix{<:Real}}, Vector{<:SparseMatrixCSC{<:Real, Int}}},
+    B_drift_anticomm_A_drives::Union{Vector{<:Matrix{<:Real}}, Vector{<:SparseMatrixCSC{<:Real, Int}}},
+    A_drives_anticomm_B_drives::Union{Matrix{<:Matrix{<:Real}}, Matrix{<:SparseMatrixCSC{<:Real, Int}}},
     n_drives::Int
-) where R <: Real
+)
     A_anticomm_B = A_drift_anticomm_B_drift
     for i = 1:n_drives
         aⁱ = a[i]
@@ -125,12 +130,12 @@ end
 end
 
 @inline function operator_anticomm_term(
-    a::AbstractVector{},
-    A_drift_anticomm_B_drives::Union{Vector{<:Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}},
-    A_drives_anticomm_B_drives::Union{Matrix{<:Matrix{R}}, Matrix{SparseMatrixCSC{R, Int}}},
+    a::AbstractVector{<:Real},
+    A_drift_anticomm_B_drives::Union{Vector{<:Matrix{<:Real}}, Vector{<:SparseMatrixCSC{<:Real, Int}}},
+    A_drives_anticomm_B_drives::Union{Matrix{<:Matrix{<:Real}}, Matrix{<:SparseMatrixCSC{<:Real, Int}}},
     n_drives::Int,
     j::Int
-) where R <: Real
+)
     A_anticomm_Bⱼ = A_drift_anticomm_B_drives[j]
     for i = 1:n_drives
         aⁱ = a[i]
@@ -229,24 +234,24 @@ const PADE_COEFFICIENTS = Dict{Int,Vector{Float64}}(
 """
 """
 struct UnitaryPadeIntegrator{R} <: QuantumPadeIntegrator
-    I_2N::SA.SparseMatrixCSC{R, Int}
-    Ω_2N::SA.SparseMatrixCSC{R, Int}
-    G_drift::Union{Nothing, Matrix{R}, SA.SparseMatrixCSC{R, Int}}
-    G_drives::Union{Nothing, Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drift_real::Union{Matrix{R}, SA.SparseMatrixCSC{R, Int}}
-    H_drift_imag::Union{Matrix{R}, SA.SparseMatrixCSC{R, Int}}
-    H_drives_real::Union{Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drives_imag::Union{Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drift_real_anticomm_H_drift_imag::Union{Matrix{R}, SA.SparseMatrixCSC{R, Int}}
-    H_drift_real_squared::Union{Matrix{R}, SA.SparseMatrixCSC{R, Int}}
-    H_drift_imag_squared::Union{Matrix{R}, SA.SparseMatrixCSC{R, Int}}
-    H_drive_real_anticomms::Union{Matrix{Matrix{R}}, Matrix{SA.SparseMatrixCSC{R, Int}}}
-    H_drive_imag_anticomms::Union{Matrix{Matrix{R}}, Matrix{SA.SparseMatrixCSC{R, Int}}}
-    H_drift_real_anticomm_H_drives_real::Union{Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drift_real_anticomm_H_drives_imag::Union{Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drift_imag_anticomm_H_drives_real::Union{Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drift_imag_anticomm_H_drives_imag::Union{Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drives_real_anticomm_H_drives_imag::Union{Matrix{Matrix{R}}, Matrix{SA.SparseMatrixCSC{R, Int}}}
+    I_2N::SparseMatrixCSC{R, Int}
+    Ω_2N::SparseMatrixCSC{R, Int}
+    G_drift::Union{Nothing, Matrix{R}, SparseMatrixCSC{R, Int}}
+    G_drives::Union{Nothing, Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drift_real::Union{Matrix{R}, SparseMatrixCSC{R, Int}}
+    H_drift_imag::Union{Matrix{R}, SparseMatrixCSC{R, Int}}
+    H_drives_real::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drives_imag::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drift_real_anticomm_H_drift_imag::Union{Matrix{R}, SparseMatrixCSC{R, Int}}
+    H_drift_real_squared::Union{Matrix{R}, SparseMatrixCSC{R, Int}}
+    H_drift_imag_squared::Union{Matrix{R}, SparseMatrixCSC{R, Int}}
+    H_drive_real_anticomms::Union{Matrix{Matrix{R}}, Matrix{SparseMatrixCSC{R, Int}}}
+    H_drive_imag_anticomms::Union{Matrix{Matrix{R}}, Matrix{SparseMatrixCSC{R, Int}}}
+    H_drift_real_anticomm_H_drives_real::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drift_real_anticomm_H_drives_imag::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drift_imag_anticomm_H_drives_real::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drift_imag_anticomm_H_drives_imag::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drives_real_anticomm_H_drives_imag::Union{Matrix{Matrix{R}}, Matrix{SparseMatrixCSC{R, Int}}}
     unitary_symb::Union{Symbol,Nothing}
     drive_symb::Union{Symbol,Tuple{Vararg{Symbol}},Nothing}
     timestep_symb::Union{Symbol,Nothing}
@@ -377,22 +382,22 @@ controls(P::UnitaryPadeIntegrator) = P.drive_symb
 timestep(P::UnitaryPadeIntegrator) = P.timestep_symb
 
 struct QuantumStatePadeIntegrator{R} <: QuantumPadeIntegrator
-    G_drift::Union{Nothing, Matrix{R}, SA.SparseMatrixCSC{R, Int}}
-    G_drives::Union{Nothing, Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drift_real::Union{Matrix{R}, SA.SparseMatrixCSC{R, Int}}
-    H_drift_imag::Union{Matrix{R}, SA.SparseMatrixCSC{R, Int}}
-    H_drives_real::Union{Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drives_imag::Union{Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drift_real_anticomm_H_drift_imag::Union{Matrix{R}, SA.SparseMatrixCSC{R, Int}}
-    H_drift_real_squared::Union{Matrix{R}, SA.SparseMatrixCSC{R, Int}}
-    H_drift_imag_squared::Union{Matrix{R}, SA.SparseMatrixCSC{R, Int}}
-    H_drive_real_anticomms::Union{Matrix{Matrix{R}}, Matrix{SA.SparseMatrixCSC{R, Int}}}
-    H_drive_imag_anticomms::Union{Matrix{Matrix{R}}, Matrix{SA.SparseMatrixCSC{R, Int}}}
-    H_drift_real_anticomm_H_drives_real::Union{Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drift_real_anticomm_H_drives_imag::Union{Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drift_imag_anticomm_H_drives_real::Union{Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drift_imag_anticomm_H_drives_imag::Union{Vector{Matrix{R}}, Vector{SA.SparseMatrixCSC{R, Int}}}
-    H_drives_real_anticomm_H_drives_imag::Union{Matrix{Matrix{R}}, Matrix{SA.SparseMatrixCSC{R, Int}}}
+    G_drift::Union{Nothing, Matrix{R}, SparseMatrixCSC{R, Int}}
+    G_drives::Union{Nothing, Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drift_real::Union{Matrix{R}, SparseMatrixCSC{R, Int}}
+    H_drift_imag::Union{Matrix{R}, SparseMatrixCSC{R, Int}}
+    H_drives_real::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drives_imag::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drift_real_anticomm_H_drift_imag::Union{Matrix{R}, SparseMatrixCSC{R, Int}}
+    H_drift_real_squared::Union{Matrix{R}, SparseMatrixCSC{R, Int}}
+    H_drift_imag_squared::Union{Matrix{R}, SparseMatrixCSC{R, Int}}
+    H_drive_real_anticomms::Union{Matrix{Matrix{R}}, Matrix{SparseMatrixCSC{R, Int}}}
+    H_drive_imag_anticomms::Union{Matrix{Matrix{R}}, Matrix{SparseMatrixCSC{R, Int}}}
+    H_drift_real_anticomm_H_drives_real::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drift_real_anticomm_H_drives_imag::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drift_imag_anticomm_H_drives_real::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drift_imag_anticomm_H_drives_imag::Union{Vector{Matrix{R}}, Vector{SparseMatrixCSC{R, Int}}}
+    H_drives_real_anticomm_H_drives_imag::Union{Matrix{Matrix{R}}, Matrix{SparseMatrixCSC{R, Int}}}
     state_symb::Union{Symbol,Nothing}
     drive_symb::Union{Symbol,Tuple{Vararg{Symbol}},Nothing}
     timestep_symb::Union{Symbol,Nothing}
