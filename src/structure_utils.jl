@@ -113,7 +113,7 @@ function dynamics_structure(∂f̂::Function, traj::NamedTrajectory, dynamics_di
     return ∂f_structure, ∂F_structure, μ∂²f_structure, μ∂²F_structure
 end
 
-function dynamics_structure(∂f::Function, μ∂²f::Function, traj::NamedTrajectory, dynamics_dim::Int)
+function dynamics_structure(∂f::Function, μ∂²f::Function, traj::NamedTrajectory, dynamics_dim::Int, link_ts::Vector{Int})
 
     # getting symbolic variables
     z1 = collect(Symbolics.@variables(z[1:traj.dim])...)
@@ -126,7 +126,7 @@ function dynamics_structure(∂f::Function, μ∂²f::Function, traj::NamedTraje
 
     ∂F_structure = Tuple{Int,Int}[]
 
-    for t = 1:traj.T-1
+    for t in link_ts
         ∂fₜ_structure = [
             (
                 i + index(t, 0, dynamics_dim),
@@ -138,7 +138,7 @@ function dynamics_structure(∂f::Function, μ∂²f::Function, traj::NamedTraje
 
     μ∂²F_structure = Tuple{Int,Int}[]
 
-    for t = 1:traj.T-1
+    for t in link_ts
         μ∂²fₜ_structure = [ij .+ index(t, 0, traj.dim) for ij ∈ μ∂²f_structure]
         append!(μ∂²F_structure, μ∂²fₜ_structure)
     end

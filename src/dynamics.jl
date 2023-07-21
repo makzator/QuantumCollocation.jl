@@ -29,11 +29,13 @@ struct QuantumDynamics <: AbstractDynamics
     μ∂²F::Function
     μ∂²F_structure::Vector{Tuple{Int, Int}}
     dim::Int
+    n_cuts::Int
 end
 
 function QuantumDynamics(
     integrators::Vector{<:AbstractIntegrator},
     traj::NamedTrajectory;
+    cuts::Vector{Int}=Int[],
     verbose=false
 )
     if verbose
@@ -65,6 +67,7 @@ function QuantumDynamics(
     end
 
     dynamics_dim = dim(integrators)
+    n_cuts = length(cuts)
 
     function f(zₜ, zₜ₊₁)
         δ = Vector{eltype(zₜ)}(undef, dynamics_dim)
@@ -195,8 +198,11 @@ function QuantumDynamics(
         println("        determining dynamics derivative structure...")
     end
 
+    link_ts = filter(t -> t ∉ cuts, 1:traj.T-1)
+    n_links = length(link_ts)
+
     ∂f_structure, ∂F_structure, μ∂²f_structure, μ∂²F_structure =
-        dynamics_structure(∂f, μ∂²f, traj, dynamics_dim)
+        dynamics_structure(∂f, μ∂²f, traj, dynamics_dim, link_ts)
 
     ∂f_nnz = length(∂f_structure)
     μ∂²f_nnz = length(μ∂²f_structure)
@@ -206,23 +212,25 @@ function QuantumDynamics(
     end
 
     @views function F(Z⃗::AbstractVector{R}) where R <: Real
-        δ = Vector{R}(undef, dynamics_dim * (traj.T - 1))
-        Threads.@threads for t = 1:traj.T-1
+        δ = Vector{R}(undef, dynamics_dim * n_links)
+        Threads.@threads for t_idx in 1:n_links
+            t = link_ts[t_idx]
             zₜ = Z⃗[slice(t, traj.dim)]
             zₜ₊₁ = Z⃗[slice(t + 1, traj.dim)]
-            δ[slice(t, dynamics_dim)] = f(zₜ, zₜ₊₁)
+            δ[slice(t_idx, dynamics_dim)] = f(zₜ, zₜ₊₁)
         end
         return δ
     end
 
     @views function ∂F(Z⃗::AbstractVector{R}) where R <: Real
         ∂s = zeros(R, length(∂F_structure))
-        Threads.@threads for t = 1:traj.T-1
+        Threads.@threads for t_idx in 1:n_links
+            t = link_ts[t_idx]
             zₜ = Z⃗[slice(t, traj.dim)]
             zₜ₊₁ = Z⃗[slice(t + 1, traj.dim)]
             ∂fₜ = ∂f(zₜ, zₜ₊₁)
             for (k, (i, j)) ∈ enumerate(∂f_structure)
-                ∂s[index(t, k, ∂f_nnz)] = ∂fₜ[i, j]
+                ∂s[index(t_idx, k, ∂f_nnz)] = ∂fₜ[i, j]
             end
         end
         return ∂s
@@ -230,19 +238,20 @@ function QuantumDynamics(
 
     @views function μ∂²F(Z⃗::AbstractVector{<:Real}, μ⃗::AbstractVector{<:Real})
         μ∂²s = Vector{eltype(Z⃗)}(undef, length(μ∂²F_structure))
-        Threads.@threads for t = 1:traj.T-1
+        Threads.@threads for t_idx in 1:n_links
+            t = link_ts[t_idx]
             zₜ = Z⃗[slice(t, traj.dim)]
             zₜ₊₁ = Z⃗[slice(t + 1, traj.dim)]
-            μₜ = μ⃗[slice(t, dynamics_dim)]
+            μₜ = μ⃗[slice(t_idx, dynamics_dim)]
             μₜ∂²fₜ = μ∂²f(zₜ, zₜ₊₁, μₜ)
             for (k, (i, j)) ∈ enumerate(μ∂²f_structure)
-                μ∂²s[index(t, k, μ∂²f_nnz)] = μₜ∂²fₜ[i, j]
+                μ∂²s[index(t_idx, k, μ∂²f_nnz)] = μₜ∂²fₜ[i, j]
             end
         end
         return μ∂²s
     end
 
-    return QuantumDynamics(integrators, F, ∂F, ∂F_structure, μ∂²F, μ∂²F_structure, dynamics_dim)
+    return QuantumDynamics(integrators, F, ∂F, ∂F_structure, μ∂²F, μ∂²F_structure, dynamics_dim, n_cuts)
 end
 
 QuantumDynamics(P::AbstractIntegrator, traj::NamedTrajectory; kwargs...) =

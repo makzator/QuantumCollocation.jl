@@ -28,7 +28,7 @@ mutable struct PicoEvaluator <: MOI.AbstractNLPEvaluator
         nonlinear_constraints::Vector{<:NonlinearConstraint},
         eval_hessian::Bool
     )
-        n_dynamics_constraints = dynamics.dim * (trajectory.T - 1)
+        n_dynamics_constraints = dynamics.dim * (trajectory.T - 1 - dynamics.n_cuts)
         n_nonlinear_constraints = sum(con.dim for con ∈ nonlinear_constraints; init=0)
 
         return new(
