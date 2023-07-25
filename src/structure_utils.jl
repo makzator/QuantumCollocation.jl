@@ -126,10 +126,10 @@ function dynamics_structure(∂f::Function, μ∂²f::Function, traj::NamedTraje
 
     ∂F_structure = Tuple{Int,Int}[]
 
-    for t in link_ts
+    for (t_idx, t) in enumerate(link_ts)
         ∂fₜ_structure = [
             (
-                i + index(t, 0, dynamics_dim),
+                i + index(t_idx, 0, dynamics_dim),
                 j + index(t, 0, traj.dim)
             ) for (i, j) ∈ ∂f_structure
         ]
