@@ -61,7 +61,7 @@ function QuantumControlProblem(
     end
     evaluator = PicoEvaluator(traj, obj, dynamics, nonlinear_constraints, eval_hessian)
 
-    n_dynamics_constraints = dynamics.dim * (traj.T - 1)
+    n_dynamics_constraints = dynamics.dim * (traj.T - 1 - dynamics.n_cuts)
     n_variables = traj.dim * traj.T
 
     linear_constraints = LinearConstraint[con for con ∈ constraints if con isa LinearConstraint]
