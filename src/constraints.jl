@@ -211,6 +211,7 @@ function ComplexModulusContraint(;
     times::Union{AbstractVector{Int}, Nothing}=nothing,
     zdim::Union{Int, Nothing}=nothing,
     T::Union{Int, Nothing}=nothing,
+    negated::Bool=false
 )
     @assert !isnothing(R) "must provide a value R, s.t. |z| <= R"
     @assert !isnothing(comps) "must provide components of the complex number"
@@ -228,10 +229,13 @@ function ComplexModulusContraint(;
     params[:times] = times
     params[:zdim] = zdim
     params[:T] = T
+    params[:negated] = negated
 
-    gₜ(xₜ, yₜ) = [R^2 - xₜ^2 - yₜ^2]
-    ∂gₜ(xₜ, yₜ) = [-2xₜ, -2yₜ]
-    μₜ∂²gₜ(μₜ) = sparse([1, 2], [1, 2], [-2μₜ, -2μₜ])
+    sign = 1 - 2*Int(negated)
+
+    gₜ(xₜ, yₜ) = sign * [R^2 - xₜ^2 - yₜ^2]
+    ∂gₜ(xₜ, yₜ) = sign * [-2xₜ, -2yₜ]
+    μₜ∂²gₜ(μₜ) = sparse([1, 2], [1, 2], sign * [-2μₜ, -2μₜ])
 
     @views function g(Z⃗)
         r = zeros(length(times))
