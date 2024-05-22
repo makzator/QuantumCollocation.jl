@@ -147,9 +147,14 @@ function QuantumObjective(;
         structure = []
         final_time_offset = index(Z.T, 0, Z.dim)
         for (name, loss) ∈ zip(names, losses)
-            comp_start_offset = Z.components[name][1] - 1
+            # comp_start_offset = Z.components[name][1] - 1
+            # comp_hessian_structure = [
+            #     ij .+ (final_time_offset + comp_start_offset)
+            #         for ij ∈ loss.∇²l_structure
+            # ]
+            name_comps = Z.components[name]
             comp_hessian_structure = [
-                ij .+ (final_time_offset + comp_start_offset)
+                (name_comps[ij[1]], name_comps[ij[2]]) .+ final_time_offset 
                     for ij ∈ loss.∇²l_structure
             ]
             append!(structure, comp_hessian_structure)
