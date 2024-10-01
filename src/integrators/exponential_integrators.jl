@@ -25,13 +25,15 @@ struct UnitaryExponentialIntegrator <: QuantumExponentialIntegrator
     zdim::Int
     autodiff::Bool
     G::Function
+    ∂aG::Vector{Function}
 
     function UnitaryExponentialIntegrator(
         sys::AbstractQuantumSystem,
         unitary_name::Symbol,
         drive_name::Union{Symbol, Tuple{Vararg{Symbol}}},
         traj::NamedTrajectory;
-        G::Function=a -> G_bilinear(a, sys.G_drift, sys.G_drives),
+        G::Union{Function, Nothing}=nothing,
+        ∂aG::Union{Vector{Function}, Nothing}=nothing,
         autodiff::Bool=false
     )
         ketdim = size(sys.H_drift, 1)
@@ -49,12 +51,23 @@ struct UnitaryExponentialIntegrator <: QuantumExponentialIntegrator
 
         @assert all(diff(drive_components) .== 1) "controls must be in order"
 
+        if isnothing(G)
+            G = a -> G_bilinear(a, sys.G_drift, sys.G_drives)
+            ∂aG = [a -> sys.G_drives[i] for i in 1:n_drives]
+        else
+            @assert !isnothing(∂aG) "∂aG must be provided if G is provided"
+        end
+
         freetime = traj.timestep isa Symbol
 
         if freetime
             timestep = traj.components[traj.timestep][1]
         else
             timestep = traj.timestep
+        end
+
+        if autodiff
+            println("autodiff turned on in exp integrator")
         end
 
         return new(
@@ -67,7 +80,8 @@ struct UnitaryExponentialIntegrator <: QuantumExponentialIntegrator
             dim,
             traj.dim,
             autodiff,
-            G
+            G,
+            ∂aG
         )
     end
 end
@@ -77,7 +91,8 @@ function (integrator::UnitaryExponentialIntegrator)(
     traj::NamedTrajectory;
     unitary_name::Union{Nothing, Symbol}=nothing,
     drive_name::Union{Nothing, Symbol, Tuple{Vararg{Symbol}}}=nothing,
-    G::Function=integrator.G,
+    G::Union{Function,Nothing}=integrator.G,
+    ∂aG::Union{Vector{Function}, Nothing}=integrator.∂aG,
     autodiff::Bool=integrator.autodiff
 )
     @assert !isnothing(unitary_name) "unitary_name must be provided"
@@ -88,6 +103,7 @@ function (integrator::UnitaryExponentialIntegrator)(
         drive_name,
         traj;
         G=G,
+        ∂aG=∂aG,
         autodiff=autodiff
     )
 end
@@ -110,7 +126,7 @@ end
     Ũ⃗ₜ₊₁ = zₜ₊₁[ℰ.unitary_components]
     Ũ⃗ₜ = zₜ[ℰ.unitary_components]
     aₜ = zₜ[ℰ.drive_components]
-
+    
     if ℰ.freetime
         Δtₜ = zₜ[ℰ.timestep]
     else
@@ -157,10 +173,36 @@ end
     ∂Ũ⃗ₜ₊₁ℰ = sparse(I, ℰ.dim, ℰ.dim)
     ∂Ũ⃗ₜℰ = -expĜₜ
 
-    ∂aₜℰ = -ForwardDiff.jacobian(
-        a -> expv(Δtₜ, Id ⊗ ℰ.G(a), Ũ⃗ₜ),
-        aₜ
-    )
+    if ℰ.autodiff
+        ∂aₜℰ = -ForwardDiff.jacobian(
+            a -> expv(Δtₜ, Id ⊗ ℰ.G(a), Ũ⃗ₜ),
+            aₜ
+        )
+    else
+        # Copilot idea: this is wrong bc assumes commutativity- but what is the
+        # error we would be making? good enough gradient?
+        # ∂aₜℰ = -ℰ.∂aG[1](aₜ) * expĜₜ * Ũ⃗ₜ
+        # for i = 2:ℰ.n_drives
+        #     ∂aₜℰ += -ℰ.∂aG[i](aₜ) * expĜₜ * Ũ⃗ₜ
+        # end
+
+        G̃ = I(ℰ.ketdim * (ℰ.n_drives+1)) ⊗ Gₜ
+        for j=1:ℰ.n_drives
+            G̃[j*ℰ.dim+1:(j+1)*ℰ.dim,1:ℰ.dim] = Id ⊗ ℰ.∂aG[j](aₜ) 
+        end
+        Ũ̃ = vcat(Ũ⃗ₜ, zeros(ℰ.dim * ℰ.n_drives))
+        ∂aₜℰ = -expv(Δtₜ, G̃, Ũ̃)[ℰ.dim+1:end]
+        ∂aₜℰ = reshape(∂aₜℰ, ℰ.dim, ℰ.n_drives)
+
+        # alternative approach with smaller exponentials
+        # ∂aₜℰ = Array{Float64}(undef, ℰ.dim, ℰ.n_drives)
+        # Ũ̃ = vcat(Ũ⃗ₜ, zeros(ℰ.dim))
+        # for j=1:ℰ.n_drives
+        #     G̃ = I(2*ℰ.ketdim) ⊗ Gₜ
+        #     G̃[ℰ.dim+1:end, 1:ℰ.dim] = Id ⊗ ℰ.∂aG[j](aₜ)
+        #     ∂aₜℰ[:,j] = -expv(Δtₜ, G̃, Ũ̃)[ℰ.dim+1:end]
+        # end
+    end
 
     if ℰ.freetime
         ∂Δtₜℰ = -(Id ⊗ Gₜ) * expĜₜ * Ũ⃗ₜ
